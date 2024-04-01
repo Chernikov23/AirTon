@@ -1,4 +1,3 @@
-
 from aiogram import Router, Bot, F
 from aiogram.types import Message, LabeledPrice, CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, PreCheckoutQuery
 from aiogram.filters import Command
@@ -12,29 +11,42 @@ from handlers.user_commands import update_balances
 
 router = Router()
 code_pattern = re.compile(r'^[A-Za-z0-9_-]{10}$')
+
 def is_referral_code(message_text):
     return code_pattern.match(message_text) is not None
 
-@router.message()
-async def join_referral(message: Message):
-    code = message.text
-    user_id = str(message.from_user.id)
-    if has_used_code(user_id, code):
-        await message.answer("Вы уже использовали этот реферальный код.")
-        return
-    
+
+async def process_referral(user_id: str, referral_code: str) -> str:
     try:
         with open('referral_codes.json', 'r') as file:
-            referral_codes = json.load(file)
-        referrer_id = referral_codes.get(code)
-        if referrer_id and user_id != referrer_id:
-            update_balances(user_id, referrer_id)
-            save_used_code(user_id, code)
-            await message.answer("Вы успешно присоединились по реферальной программе!")
-        else:
-            await message.answer("Невозможно использовать этот реферальный код.")
+            try:
+                referral_codes = json.load(file)
+            except json.JSONDecodeError:
+                referral_codes = {}
     except FileNotFoundError:
-        await message.answer("Произошла ошибка при обработке вашего запроса.")
+        referral_codes = {}
+
+    if referral_code in referral_codes and user_id != referral_codes[referral_code]:
+        update_balances(user_id, referral_codes[referral_code])
+        save_used_code(user_id, referral_code)
+        return "Вы успешно присоединились по реферальной программе!"
+    elif referral_code not in referral_codes:
+        return "Реферальный код не найден или неверен."
+    else:
+        return "Невозможно использовать этот реферальный код."
+
+
+@router.message()
+async def join_referral(message: Message):
+    if is_referral_code(message.text):
+        user_id = str(message.from_user.id)
+        code = message.text
+        if has_used_code(user_id, code):
+            await message.answer("Вы уже использовали этот реферальный код.")
+            return
+        
+        response_message = await process_referral(user_id, code)
+        await message.answer(response_message)
 
 
 
@@ -46,29 +58,39 @@ async def bal(call: CallbackQuery):
     if callback_data == 'balance': 
         await call.message.answer(f"Ваш баланс: {user_data_local[chat_id]['yourBal']}")
     elif callback_data == 'send':
-        code = secrets.token_urlsafe(5)  # Генерация уникального кода
+        code = secrets.token_urlsafe(10)  # Adjusted to generate a 10-character code to match the pattern
         save_referral_code(chat_id, code)
-        await call.message.answer(f"Ваш реферальный код:\nОтправьте этот код другу, чтобы он мог его использовать.")
-        await call.message.answer(f"{code}\n@Air_tonbot")
-    
+        bot_username = 'testbardbot'  # Ensure this is your bot's username
+        referral_link = f"https://t.me/{bot_username}?start={code}"  # Generating the referral link
+        await call.message.answer(f"Ваша реферальная ссылка:\nОтправьте эту ссылку другу, чтобы он мог присоединиться.\n{referral_link}")
+
+
+
 def save_referral_code(user_id, code):
     try:
         with open('referral_codes.json', 'r') as file:
-            referral_codes = json.load(file)
+            try:
+                referral_codes = json.load(file)
+            except json.JSONDecodeError:
+                referral_codes = {} 
     except FileNotFoundError:
-        referral_codes = {}
+        referral_codes = {}  
 
     referral_codes[code] = user_id
     with open('referral_codes.json', 'w') as file:
         json.dump(referral_codes, file)
 
+
 def save_used_code(user_id, code):
     try:
         with open('used_codes.json', 'r') as file:
-            used_codes = json.load(file)
+            try:
+                used_codes = json.load(file)
+            except json.JSONDecodeError:
+                used_codes = {}  
     except FileNotFoundError:
-        used_codes = {}
-    
+        used_codes = {} 
+
     if user_id in used_codes:
         used_codes[user_id].append(code)
     else:
@@ -77,12 +99,17 @@ def save_used_code(user_id, code):
     with open('used_codes.json', 'w') as file:
         json.dump(used_codes, file)
 
+
 def has_used_code(user_id, code):
     try:
         with open('used_codes.json', 'r') as file:
-            used_codes = json.load(file)
-        if user_id in used_codes and code in used_codes[user_id]:
-            return True
+            try:
+                used_codes = json.load(file)
+                if user_id in used_codes and code in used_codes[user_id]:
+                    return True
+            except json.JSONDecodeError:
+                return False  
     except FileNotFoundError:
-        pass
+        return False  
     return False
+
