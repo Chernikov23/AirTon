@@ -15,15 +15,47 @@ from utils.usdata import *
 router = Router()
 
 
+async def process_referral(user_id: str, referral_code: str) -> str:
+    try:
+        with open('referral_codes.json', 'r') as file:
+            try:
+                referral_codes = json.load(file)
+            except json.JSONDecodeError:
+                
+                referral_codes = {}
+    except FileNotFoundError:
+        referral_codes = {}
+
+    if referral_code in referral_codes and user_id != referral_codes[referral_code]:
+        update_balances(user_id, referral_codes[referral_code])
+        save_used_code(user_id, referral_code)
+        return "Вы успешно присоединились по реферальной программе!"
+    elif referral_code not in referral_codes:
+        return "Реферальный код не найден или неверен."
+    else:
+        return "Невозможно использовать этот реферальный код."
+
+
+
 @router.message(CommandStart())
 async def start(msg: Message):
-    chat_id = str(msg.chat.id)
+    user_id = str(msg.from_user.id)
+    # Извлекаем аргументы из команды /start, если они есть
+    args = msg.text.partition(' ')[2]  # Разделяем текст сообщения и берем часть после /start
+
     user_data_local = load_user_data()
-    if chat_id not in user_data_local:
-        user_data_local[chat_id] = user_data_template
+
+    if user_id not in user_data_local:
+        user_data_local[user_id] = user_data_template
         save_user_data(user_data_local)
-    await msg.answer("Мы хотим вас инфицировать Вселенной", reply_markup=inline.main)
-        
+        print(f"Пользователь {msg.from_user.username} зарегистрирован")
+
+    if args:
+        referral_code = args.strip()
+        response_message = await process_referral(user_id, referral_code)
+        await msg.answer(response_message)
+    else:
+        await msg.answer("Добро пожаловать в нашего бота! Если у вас есть реферальный код, отправьте его.", reply_markup=inline.main)
 
 @router.message(Command("numofusers"))
 async def numus(msg: Message):
@@ -40,7 +72,7 @@ async def numus(msg: Message):
 async def join_referral(message: Message):
     args = message.text.split(maxsplit=1)  # Разделение сообщения на части
     if len(args) > 1:
-        code = args[1]  # Второй элемент — это наш код
+        code = args[1]  # Второй элемент — это  код
         try:
             with open('referral_codes.json', 'r') as file:
                 referral_codes = json.load(file)
@@ -72,3 +104,52 @@ def update_balances(user_id, referrer_id):
     
     with open('user_data.json', 'w') as file:
         json.dump(user_data, file)
+        
+        
+def save_referral_code(user_id, code):
+    try:
+        with open('referral_codes.json', 'r') as file:
+            try:
+                referral_codes = json.load(file)
+            except json.JSONDecodeError:
+                referral_codes = {} 
+    except FileNotFoundError:
+        referral_codes = {}  
+
+    referral_codes[code] = user_id
+    with open('referral_codes.json', 'w') as file:
+        json.dump(referral_codes, file)
+
+
+def save_used_code(user_id, code):
+    try:
+        with open('used_codes.json', 'r') as file:
+            try:
+                used_codes = json.load(file)
+            except json.JSONDecodeError:
+                used_codes = {}  
+    except FileNotFoundError:
+        used_codes = {} 
+
+    if user_id in used_codes:
+        used_codes[user_id].append(code)
+    else:
+        used_codes[user_id] = [code]
+    
+    with open('used_codes.json', 'w') as file:
+        json.dump(used_codes, file)
+
+
+def has_used_code(user_id, code):
+    try:
+        with open('used_codes.json', 'r') as file:
+            try:
+                used_codes = json.load(file)
+                if user_id in used_codes and code in used_codes[user_id]:
+                    return True
+            except json.JSONDecodeError:
+                return False  
+    except FileNotFoundError:
+        return False  
+    return False
+
