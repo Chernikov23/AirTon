@@ -15,25 +15,30 @@ from utils.usdata import *
 router = Router()
 
 
-async def process_referral(user_id: str, referral_code: str) -> str:
+async def process_referral(user_id: str, referral_code: str) -> int:
     try:
         with open('referral_codes.json', 'r') as file:
             try:
                 referral_codes = json.load(file)
             except json.JSONDecodeError:
-                
+                # Файл существует, но пуст или содержит некорректные данные
                 referral_codes = {}
     except FileNotFoundError:
+        # Файл не существует, создаем новый словарь реферальных кодов
         referral_codes = {}
 
+    num_referrals_sent = 0
+
     if referral_code in referral_codes and user_id != referral_codes[referral_code]:
-        update_balances(user_id, referral_codes[referral_code])
+        num_referrals_sent = update_balances(user_id, referral_codes[referral_code])
         save_used_code(user_id, referral_code)
-        return "Вы успешно присоединились по реферальной программе!"
     elif referral_code not in referral_codes:
-        return "Реферальный код не найден или неверен."
+        pass  # Реферальный код не найден или неверен.
     else:
-        return "Невозможно использовать этот реферальный код."
+        pass  # Невозможно использовать этот реферальный код.
+
+    return num_referrals_sent
+
 
 
 
@@ -52,10 +57,11 @@ async def start(msg: Message):
 
     if args:
         referral_code = args.strip()
-        response_message = await process_referral(user_id, referral_code)
-        await msg.answer(response_message)
+        num_referrals_sent = await process_referral(user_id, referral_code)
+        await msg.answer(f"Добро пожаловать в нашего бота! Вы успешно присоединились по реферальной программе! Реферат был разослан {num_referrals_sent} пользователям.", reply_markup=inline.main)
     else:
         await msg.answer("Добро пожаловать в нашего бота! Если у вас есть реферальный код, отправьте его.", reply_markup=inline.main)
+
 
 @router.message(Command("numofusers"))
 async def numus(msg: Message):
@@ -72,7 +78,7 @@ async def numus(msg: Message):
 async def join_referral(message: Message):
     args = message.text.split(maxsplit=1)  # Разделение сообщения на части
     if len(args) > 1:
-        code = args[1]  # Второй элемент — это  код
+        code = args[1]  # Второй элемент — это наш код
         try:
             with open('referral_codes.json', 'r') as file:
                 referral_codes = json.load(file)
@@ -89,6 +95,33 @@ async def join_referral(message: Message):
     else:
         await message.answer("Пожалуйста, укажите реферальный код после команды. Например, /join_referral XYZ123")
         
+        
+        
+@router.message(Command('tops'))
+async def show_tops(msg: Message):
+    try:
+        with open('user_data.json', 'r') as file:
+            user_data = json.load(file)
+    except (FileNotFoundError, json.JSONDecodeError):
+        await msg.answer("Произошла ошибка при загрузке данных пользователей.")
+        return
+
+    # Сортировка пользователей по балансу (от меньшего к большему) и выбор первых пяти
+    top_users = sorted(user_data.items(), key=lambda x: x[1]['yourBal'])[:10]
+
+    # Формирование сообщения с топ-5 пользователей
+    top_message = "Топ 10 пользователей с наименьшим балансом:\n"
+    for index, (user_id, user_info) in enumerate(top_users, start=1):
+        # Для получения username, вам может потребоваться запрос к API Telegram или хранить username в user_data
+        top_message += f"{index} - user_id: {user_id}, баланс: {user_info['yourBal']}\n"
+
+    await msg.answer(top_message)        
+        
+
+@router.message(Command('chat_id'))
+async def proc_chat_id(msg: Message):
+    await msg.answer(f"Your chat id: {msg.chat.id}")
+
 def update_balances(user_id, referrer_id):
     try:
         with open('user_data.json', 'r') as file:
@@ -96,14 +129,23 @@ def update_balances(user_id, referrer_id):
     except FileNotFoundError:
         user_data = {}
 
+    num_referrals_sent = 0
+
     for uid in [user_id, referrer_id]:
         if uid in user_data:
-            user_data[uid]['yourBal'] /= 2
+            if user_data[uid]['yourBal'] > 1:
+                user_data[uid]['yourBal'] /= 2
+            else:
+                user_data[uid]['yourBal'] = 1  # Ограничение баланса до 1, если меньше
+            num_referrals_sent += 1
         else:
             user_data[uid] = {'yourBal': 8000000000 / 2}
     
     with open('user_data.json', 'w') as file:
         json.dump(user_data, file)
+    
+    return num_referrals_sent
+
         
         
 def save_referral_code(user_id, code):
@@ -112,9 +154,9 @@ def save_referral_code(user_id, code):
             try:
                 referral_codes = json.load(file)
             except json.JSONDecodeError:
-                referral_codes = {} 
+                referral_codes = {}  # Файл пуст, создаем новый словарь
     except FileNotFoundError:
-        referral_codes = {}  
+        referral_codes = {}  # Файл не найден, создаем новый словарь
 
     referral_codes[code] = user_id
     with open('referral_codes.json', 'w') as file:
@@ -127,9 +169,9 @@ def save_used_code(user_id, code):
             try:
                 used_codes = json.load(file)
             except json.JSONDecodeError:
-                used_codes = {}  
+                used_codes = {}  # Файл пуст, создаем новый словарь
     except FileNotFoundError:
-        used_codes = {} 
+        used_codes = {}  # Файл не найден, создаем новый словарь
 
     if user_id in used_codes:
         used_codes[user_id].append(code)
@@ -148,8 +190,8 @@ def has_used_code(user_id, code):
                 if user_id in used_codes and code in used_codes[user_id]:
                     return True
             except json.JSONDecodeError:
-                return False  
+                return False  # Файл пуст, следовательно код не мог быть использован
     except FileNotFoundError:
-        return False  
+        return False  # Файл не найден, следовательно код не мог быть использован
     return False
 
