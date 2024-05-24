@@ -1,10 +1,7 @@
-from aiogram import Router, Bot, F
-from aiogram.types import Message, LabeledPrice, CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, PreCheckoutQuery
-from aiogram.filters import Command
-from keyboards import reply, inline
-from utils.usdata import *
+from aiogram import Router
+from aiogram.types import Message, CallbackQuery
+from utils.updata import *
 from handlers.user_commands import *
-import secrets
 import re
 from handlers.user_commands import update_balances
 
@@ -56,13 +53,13 @@ async def bal(call: CallbackQuery):
     callback_data = call.data
     user_data_local = load_user_data()
     if callback_data == 'balance': 
-        await call.message.answer(f"Ваш баланс: {user_data_local[chat_id]['yourBal']}")
+        await call.message.answer(f"Ваш баланс: **{user_data_local[chat_id]['yourBal']}**")
     elif callback_data == 'send':
-        code = secrets.token_urlsafe(10)  # Adjusted to generate a 10-character code to match the pattern
+        code = call.from_user.username  
         save_referral_code(chat_id, code)
         bot_username = 'testbardbot'  # Ensure this is your bot's username
         referral_link = f"https://t.me/{bot_username}?start={code}"  # Generating the referral link
-        await call.message.answer(f"Ваша реферальная ссылка:\nОтправьте эту ссылку другу, чтобы он мог присоединиться.\n{referral_link}")
+        await call.message.answer(f"Ваша реферальная ссылка:\nОтправьте эту ссылку другу, чтобы он мог присоединиться.\n`{referral_link}`")
 
 
 

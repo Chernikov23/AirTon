@@ -1,10 +1,12 @@
 import asyncio
-from aiogram import Bot, Dispatcher, F, types, exceptions
+from aiogram import Bot, Dispatcher
+from aiogram.client.default import DefaultBotProperties
+from aiogram.enums import ParseMode
 import logging
 from config_reader import config
 import handlers
 
-bot = Bot(config.bot_token.get_secret_value(), parse_mode='HTML')
+bot = Bot(config.bot_token.get_secret_value(), default=DefaultBotProperties(parse_mode=ParseMode.MARKDOWN))
 dp = Dispatcher()
 
 logging.basicConfig(level=logging.INFO)
@@ -23,4 +25,3 @@ async def main():
 
 if __name__ == '__main__':
     asyncio.run(main())
-# даешь токен нативныйй физический 
