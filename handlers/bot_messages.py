@@ -1,20 +1,27 @@
 from aiogram import Router, F
 from aiogram.types import CallbackQuery
 from utils.db import *
+import os, json
 
 router = Router()
+
+async def get_message(key, lang_code):
+    file_path = os.path.join(os.path.join(os.path.dirname(__file__), 'locales'), f"{lang_code}.json")
+    with open(file_path, "r", encoding="utf-8") as file:
+        data = json.load(file)
+    return data.get(key)
 
 
 @router.callback_query(F.data == 'send')
 async def send_ref(callback: CallbackQuery):
-    await callback.message.answer(f"Your tgid:\n`https://t.me/air_tonbot?start={callback.from_user.id}`")
+    await callback.message.answer(text=str(await get_message('send', callback.from_user.language_code)).format(f"https://t.me/air_tonbot?start={callback.from_user.id}"))
 
 
 @router.callback_query(F.data == 'balance')
 async def show_balance(callback: CallbackQuery):
     user_balance = get_user_by_tgid(callback.from_user.id)[4]
     total_balance = get_balance()
-    await callback.message.answer(f"Ваш баланс: *{user_balance}* AirTon\nОбщий баланс системы: *{total_balance}* AirTon")
+    await callback.message.answer(text=str(await get_message('balance', callback.from_user.language_code)).format(user_balance, total_balance))
 
 
 

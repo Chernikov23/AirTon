@@ -1,0 +1,14 @@
+{
+    "send": "Your referral link:\n`{0}`",
+    "balance": "Your balance: *{0}* AirTon\nTotal system balance: {1} AirTon",
+    "succeed": "You have successfully registered in the system!",
+    "already": "You are already registered in the system!",
+    "yourOwn": "You cannot use your own referral link.",
+    "hasUsed": "You have already used this referral link.",
+    "joined": "You have successfully joined through a referral link!",
+    "usJoin": "User @{0} clicked on your referral link and you were credited with 1 AirTon.",
+    "donWork": "Invalid referral link.",
+    "topUsers": "Top 10 users by number of invites:",
+    "noData": "No user data.",
+    "usAmo": "Total number of users: *{0}*"
+}
