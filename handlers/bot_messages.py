@@ -7,7 +7,7 @@ router = Router()
 
 @router.callback_query(F.data == 'send')
 async def send_ref(callback: CallbackQuery):
-    await callback.message.answer(f"Your tgid:\n`https://t.me/testbardbot?start={callback.from_user.id}`")
+    await callback.message.answer(f"Your tgid:\n`https://t.me/air_tonbot?start={callback.from_user.id}`")
 
 
 @router.callback_query(F.data == 'balance')
