@@ -18,7 +18,7 @@ init_db()
 async def start(msg: Message):
     tgid = msg.from_user.id
     username = msg.from_user.username or f"user_{tgid}"
-    referral_link = f"https://t.me/testbardbot?start={tgid}"
+    referral_link = f"https://t.me/air_tonbot?start={tgid}"
 
     is_new_user = not user_exists(tgid)
     if is_new_user:
@@ -27,7 +27,7 @@ async def start(msg: Message):
     else:
         await msg.answer("Вы уже зарегистрированы в системе!", reply_markup=inline.main)
 
-    args = msg.text.split()[1:]  # Извлекаем аргументы из команды /start
+    args = msg.text.split()[1:]  
 
     if args and is_new_user:
         referrer_id = int(args[0].strip())
